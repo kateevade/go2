@@ -49,15 +49,17 @@ func validateMetadata(node *yaml.Node) error {
 		return Errorf(node, "metadata must be object")
 	}
 
-	// name обязателен, но может быть пустым или любым
-	_, err := requireField(node, "name")
+	nameNode, err := requireField(node, "name")
 	if err != nil {
 		return err
 	}
+	if nameNode.Kind != yaml.ScalarNode {
+		return Errorf(nameNode, "metadata.name must be string")
+	}
+	// НЕ проверяем, что name не пустой
 
 	return nil
 }
-
 func validateSpec(node *yaml.Node) error {
 	if node.Kind != yaml.MappingNode {
 		return Errorf(node, "spec must be object")
