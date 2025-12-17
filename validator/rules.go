@@ -59,7 +59,6 @@ func validateMetadata(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "metadata.name must be string")
 	}
-	// Пустая строка или null — разрешено
 	return nil
 }
 
@@ -102,13 +101,13 @@ func validatePodOS(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "spec.os.name must be string")
 	}
-
 	value := nameNode.Value
 	if value != "linux" && value != "windows" {
-		return Errorf(nameNode, "spec.os.name has unsupported value '" + value + "'")
+		return Errorf(nameNode, "spec.os.name has unsupported value '"+value+"'")
 	}
 	return nil
 }
+
 func validateContainer(node *yaml.Node) error {
 	if node.Kind != yaml.MappingNode {
 		return Errorf(node, "container must be object")
@@ -121,9 +120,11 @@ func validateContainer(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "containers.name must be string")
 	}
-	if name := nameNode.Value; !snakeCaseRegex.MatchString(name) || name == "" {
+	name := nameNode.Value
+	if name != "" && !snakeCaseRegex.MatchString(name) {
 		return Errorf(nameNode, "containers.name has invalid format '"+name+"'")
 	}
+	// Пустое имя контейнера — разрешено
 
 	imageNode, err := requireField(node, "image")
 	if err != nil {
@@ -238,41 +239,38 @@ func validateResources(node *yaml.Node) error {
 		return Errorf(node, "resources must be object")
 	}
 
-	for _, section := range []string{"requests", "limits"} {
-		sectionNode := findMappingNode(node, section)
-		if sectionNode == nil {
-			continue // requests/limits опциональны
+	for _, sec := range []string{"requests", "limits"} {
+		secNode := findMappingNode(node, sec)
+		if secNode == nil {
+			continue
 		}
-		if sectionNode.Kind != yaml.MappingNode {
-			return Errorf(sectionNode, "resources." + section + " must be object")
-		}
-
-		cpuNode := findMappingNode(sectionNode, "cpu")
-		if cpuNode != nil {
-			if cpuNode.Kind != yaml.ScalarNode {
-				return Errorf(cpuNode, "resources." + section + ".cpu must be int")
-			}
-			if _, err := strconv.Atoi(cpuNode.Value); err != nil {
-				return Errorf(cpuNode, "resources." + section + ".cpu must be int")
-			}
+		if secNode.Kind != yaml.MappingNode {
+			return Errorf(secNode, "resources."+sec+" must be object")
 		}
 
-		memNode := findMappingNode(sectionNode, "memory")
-		if memNode != nil {
-			if memNode.Kind != yaml.ScalarNode {
-				return Errorf(memNode, "resources." + section + ".memory must be string")
+		if cpu := findMappingNode(secNode, "cpu"); cpu != nil {
+			if cpu.Kind != yaml.ScalarNode {
+				return Errorf(cpu, "resources."+sec+".cpu must be int")
 			}
-			mem := memNode.Value
-			if len(mem) < 3 {
-				return Errorf(memNode, "resources." + section + ".memory has invalid format '" + mem + "'")
+			if _, err := strconv.Atoi(cpu.Value); err != nil {
+				return Errorf(cpu, "resources."+sec+".cpu must be int")
 			}
-			suffix := mem[len(mem)-2:]
-			if suffix != "Ki" && suffix != "Mi" && suffix != "Gi" {
-				return Errorf(memNode, "resources." + section + ".memory has invalid format '" + mem + "'")
+		}
+
+		if mem := findMappingNode(secNode, "memory"); mem != nil {
+			if mem.Kind != yaml.ScalarNode {
+				return Errorf(mem, "resources."+sec+".memory must be string")
 			}
-			numPart := mem[:len(mem)-2]
-			if _, err := strconv.Atoi(numPart); err != nil {
-				return Errorf(memNode, "resources." + section + ".memory has invalid format '" + mem + "'")
+			m := mem.Value
+			if len(m) < 3 {
+				return Errorf(mem, "resources."+sec+".memory has invalid format '"+m+"'")
+			}
+			suf := m[len(m)-2:]
+			if suf != "Ki" && suf != "Mi" && suf != "Gi" {
+				return Errorf(mem, "resources."+sec+".memory has invalid format '"+m+"'")
+			}
+			if _, err := strconv.Atoi(m[:len(m)-2]); err != nil {
+				return Errorf(mem, "resources."+sec+".memory has invalid format '"+m+"'")
 			}
 		}
 	}
