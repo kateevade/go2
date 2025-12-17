@@ -8,7 +8,7 @@ import (
 )
 
 func ValidatePodYAML(filepath string) error {
-	filename = filepath // для вывода ошибок
+	filename = filepath
 
 	content, err := os.ReadFile(filepath)
 	if err != nil {
@@ -24,8 +24,6 @@ func ValidatePodYAML(filepath string) error {
 		return Errorf(&root, "empty yaml document")
 	}
 
-	// Обычно первый документ
 	doc := root.Content[0]
-
 	return validateTopLevel(doc)
 }

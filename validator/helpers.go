@@ -8,7 +8,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Errorf — выводит ошибку в stderr в требуемом формате
+var filename string // устанавливается в ValidatePodYAML
+
+// Errorf выводит ошибку в stderr в требуемом формате и возвращает error
 func Errorf(node *yaml.Node, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	if node != nil && node.Line > 0 {
@@ -19,42 +21,37 @@ func Errorf(node *yaml.Node, format string, args ...interface{}) error {
 	return fmt.Errorf(msg)
 }
 
-var filename string // будет установлен в ValidatePodYAML
-
-// findMappingNode ищет узел с заданным ключом в mapping-узле
+// findMappingNode ищет дочерний узел по ключу в mapping
 func findMappingNode(parent *yaml.Node, key string) *yaml.Node {
 	if parent.Kind != yaml.MappingNode {
 		return nil
 	}
 	for i := 0; i < len(parent.Content); i += 2 {
-		k := parent.Content[i]
-		if k.Value == key {
+		if parent.Content[i].Value == key {
 			return parent.Content[i+1]
 		}
 	}
 	return nil
 }
 
-// requireField проверяет наличие обязательного поля
-func requireField(parent *yaml.Node, field string) (*yaml.Node, error) {
-	node := findMappingNode(parent, field)
-	if node == nil {
-		keyNode := findKeyNode(parent, field)
-		return nil, Errorf(keyNode, "%s is required", field)
-	}
-	return node, nil
-}
-
-// findKeyNode находит узел-ключа (для ошибки на правильной строке)
+// findKeyNode ищет узел ключа (для правильной строки ошибки при отсутствии поля)
 func findKeyNode(parent *yaml.Node, key string) *yaml.Node {
 	if parent.Kind != yaml.MappingNode {
 		return nil
 	}
 	for i := 0; i < len(parent.Content); i += 2 {
-		k := parent.Content[i]
-		if k.Value == key {
-			return k
+		if parent.Content[i].Value == key {
+			return parent.Content[i]
 		}
 	}
 	return parent // если не нашли — возвращаем родителя
+}
+
+// requireField проверяет наличие обязательного поля и возвращает его узел
+func requireField(parent *yaml.Node, field string) (*yaml.Node, error) {
+	node := findMappingNode(parent, field)
+	if node == nil {
+		return nil, Errorf(findKeyNode(parent, field), "%s is required", field)
+	}
+	return node, nil
 }
