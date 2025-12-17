@@ -94,18 +94,19 @@ func validatePodOS(node *yaml.Node) error {
 		return Errorf(node, "spec.os must be object")
 	}
 
-	nameNode, err := requireField(node, "name")
-	if err != nil {
-		return err
+	nameValueNode := findMappingNode(node, "name")
+	if nameValueNode == nil {
+		return Errorf(nil, "containers.name is required")
 	}
-	if nameNode.Kind != yaml.ScalarNode {
-		return Errorf(nameNode, "spec.os.name must be string")
+	if nameValueNode.Kind != yaml.ScalarNode {
+		return Errorf(nameValueNode, "containers.name must be string")
 	}
-	value := nameNode.Value
-	if value != "linux" && value != "windows" {
-		return Errorf(nameNode, "spec.os.name has unsupported value '"+value+"'")
+
+	name := nameValueNode.Value
+	if name != "" && !snakeCaseRegex.MatchString(name) {
+		return Errorf(nameValueNode, "containers.name has invalid format '" + name + "'")
 	}
-	return nil
+		return nil
 }
 
 func validateContainer(node *yaml.Node) error {
