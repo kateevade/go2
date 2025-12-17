@@ -18,9 +18,9 @@ func main() {
 
 	err := validator.ValidatePodYAML(filename)
 	if err != nil {
-		// Ошибки уже выведены в ValidatePodYAML в stderr
+		// Ошибки уже выведены в stderr внутри ValidatePodYAML
 		os.Exit(1)
 	}
-	// Успех — просто выходим с кодом 0
+	// Успех — код 0
 	os.Exit(0)
 }
