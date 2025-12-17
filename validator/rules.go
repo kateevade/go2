@@ -49,6 +49,7 @@ func validateMetadata(node *yaml.Node) error {
 		return Errorf(node, "metadata must be object")
 	}
 
+	// name обязателен, но может быть пустым или любым
 	nameNode, err := requireField(node, "name")
 	if err != nil {
 		return err
@@ -56,7 +57,7 @@ func validateMetadata(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "metadata.name must be string")
 	}
-	// Разрешаем пустое имя
+	// НЕ ругаемся на пустое имя
 
 	return nil
 }
@@ -66,6 +67,7 @@ func validateSpec(node *yaml.Node) error {
 		return Errorf(node, "spec must be object")
 	}
 
+	// os опционально, если есть — только структура
 	if osNode := findMappingNode(node, "os"); osNode != nil {
 		if err := validatePodOS(osNode); err != nil {
 			return err
@@ -101,7 +103,7 @@ func validatePodOS(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "spec.os.name must be string")
 	}
-	// Любое значение
+	// Любое значение разрешено
 
 	return nil
 }
@@ -111,6 +113,7 @@ func validateContainer(node *yaml.Node) error {
 		return Errorf(node, "container must be object")
 	}
 
+	// name обязателен, но может быть любым или пустым
 	nameNode, err := requireField(node, "name")
 	if err != nil {
 		return err
@@ -118,7 +121,6 @@ func validateContainer(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "containers.name must be string")
 	}
-	// Разрешаем пустое имя контейнера
 
 	imageNode, err := requireField(node, "image")
 	if err != nil {
@@ -174,6 +176,7 @@ func validateContainerPort(node *yaml.Node) error {
 	if err != nil {
 		return Errorf(portNode, "containerPort must be int")
 	}
+	// НЕ проверяем диапазон порта (даже отрицательный)
 
 	if protoNode := findMappingNode(node, "protocol"); protoNode != nil {
 		if protoNode.Kind != yaml.ScalarNode {
@@ -226,7 +229,7 @@ func validateHTTPGet(node *yaml.Node) error {
 	if err != nil {
 		return Errorf(portNode, "port must be int")
 	}
-	// НЕ проверяем диапазон порта в пробах
+	// НЕ проверяем диапазон порта в пробе
 
 	return nil
 }
@@ -246,7 +249,7 @@ func validateResources(node *yaml.Node) error {
 				if cpuNode.Kind != yaml.ScalarNode {
 					return Errorf(cpuNode, "resources.%s.cpu must be int", section)
 				}
-				// Разрешаем любые значения (число или строка)
+				// Любое значение (число или строка) — принимаем
 			}
 
 			if memNode := findMappingNode(sectionNode, "memory"); memNode != nil {
