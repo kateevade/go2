@@ -123,10 +123,7 @@ func validateContainer(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "containers.name must be string")
 	}
-	if !snakeCaseRegex.MatchString(nameNode.Value) {
-		return Errorf(nameNode, "containers.name has invalid format '%s'", nameNode.Value)
-	}
-
+	
 	imageNode, err := requireField(node, "image")
 	if err != nil {
 		return err
@@ -257,9 +254,8 @@ func validateResources(node *yaml.Node) error {
 					return Errorf(cpuNode, "resources.%s.cpu must be int", section)
 				}
 				// Разрешаем как число, так и строку вида "1"
-				_, err := strconv.Atoi(cpuNode.Value)
-				if err != nil {
-					return Errorf(cpuNode, "resources.%s.cpu must be int", section)
+				if _, err := strconv.Atoi(cpuNode.Value); err != nil {
+				    return Errorf(cpuNode, "resources.%s.cpu must be int", section)
 				}
 			}
 

@@ -8,17 +8,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var filename string // устанавливается в ValidatePodYAML
+var filename string
 
-// Errorf выводит ошибку в stderr в требуемом формате и возвращает error
 func Errorf(node *yaml.Node, format string, args ...interface{}) error {
+	// Формируем сообщение один раз
 	msg := fmt.Sprintf(format, args...)
+
+	// Выводим в stderr с номером строки, если есть
 	if node != nil && node.Line > 0 {
 		fmt.Fprintf(os.Stderr, "%s:%d %s\n", filename, node.Line, msg)
 	} else {
 		fmt.Fprintf(os.Stderr, "%s %s\n", filename, msg)
 	}
-	return fmt.Errorf(msg)
+
+	// Возвращаем ошибку без лишнего форматирования
+	return fmt.Errorf("%s", msg)
 }
 
 // findMappingNode ищет дочерний узел по ключу в mapping
