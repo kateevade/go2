@@ -1,3 +1,26 @@
+// main.go
 package main
 
-func main() {}
+import (
+	"fmt"
+	"os"
+
+	"yamlvalidator/validator"
+)
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <yaml-file>\n", os.Args[0])
+		os.Exit(1)
+	}
+
+	filename := os.Args[1]
+
+	err := validator.ValidatePodYAML(filename)
+	if err != nil {
+		// Ошибки уже выведены в ValidatePodYAML в stderr
+		os.Exit(1)
+	}
+	// Успех — просто выходим с кодом 0
+	os.Exit(0)
+}
