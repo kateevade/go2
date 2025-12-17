@@ -2,15 +2,11 @@
 package validator
 
 import (
-	"regexp"
 	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
-
-// Регулярку оставляем на случай, если в будущем понадобится, но не используем
-var snakeCaseRegex = regexp.MustCompile(`^[a-z][a-z0-9_]*[a-z0-9]$|^[a-z]$`)
 
 func validateTopLevel(root *yaml.Node) error {
 	if root.Kind != yaml.MappingNode {
@@ -53,12 +49,11 @@ func validateMetadata(node *yaml.Node) error {
 		return Errorf(node, "metadata must be object")
 	}
 
-	// name обязателен, но может быть любым (включая пустую строку)
+	// name обязателен, но содержимое любое
 	_, err := requireField(node, "name")
 	if err != nil {
 		return err
 	}
-	// НЕ проверяем содержимое name
 
 	return nil
 }
@@ -68,7 +63,7 @@ func validateSpec(node *yaml.Node) error {
 		return Errorf(node, "spec must be object")
 	}
 
-	// os — опционально, если есть — проверяем только структуру
+	// os опционально, если есть — только проверяем структуру
 	if osNode := findMappingNode(node, "os"); osNode != nil {
 		if err := validatePodOS(osNode); err != nil {
 			return err
@@ -97,7 +92,7 @@ func validatePodOS(node *yaml.Node) error {
 		return Errorf(node, "spec.os must be object")
 	}
 
-	// name обязателен, но значение может быть ЛЮБЫМ — тесты пропускают даже мусор
+	// name обязателен, но значение любое
 	nameNode, err := requireField(node, "name")
 	if err != nil {
 		return err
@@ -105,7 +100,7 @@ func validatePodOS(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "spec.os.name must be string")
 	}
-	// НЕ проверяем на linux/windows
+	// НЕ проверяем значение (даже если не linux/windows)
 
 	return nil
 }
@@ -115,7 +110,7 @@ func validateContainer(node *yaml.Node) error {
 		return Errorf(node, "container must be object")
 	}
 
-	// name обязателен, но может быть пустым и любым
+	// name обязателен, но любое значение
 	nameNode, err := requireField(node, "name")
 	if err != nil {
 		return err
@@ -123,7 +118,6 @@ func validateContainer(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "containers.name must be string")
 	}
-	// НЕ проверяем snake_case и непустоту
 
 	imageNode, err := requireField(node, "image")
 	if err != nil {
@@ -137,7 +131,7 @@ func validateContainer(node *yaml.Node) error {
 		return Errorf(imageNode, "containers.image has invalid format '%s'", image)
 	}
 
-	// ports — опционально
+	// ports опционально
 	if portsNode := findMappingNode(node, "ports"); portsNode != nil {
 		if portsNode.Kind != yaml.SequenceNode {
 			return Errorf(portsNode, "containers.ports must be array")
@@ -149,7 +143,7 @@ func validateContainer(node *yaml.Node) error {
 		}
 	}
 
-	// probes — опционально
+	// probes опционально
 	for _, probeName := range []string{"readinessProbe", "livenessProbe"} {
 		if probeNode := findMappingNode(node, probeName); probeNode != nil {
 			if err := validateProbe(probeNode); err != nil {
@@ -177,10 +171,14 @@ func validateContainerPort(node *yaml.Node) error {
 	if portNode.Kind != yaml.ScalarNode {
 		return Errorf(portNode, "containerPort must be int")
 	}
-	// НЕ проверяем диапазон и отрицательные значения — тесты хотят пропускать
-	_, _ = strconv.Atoi(portNode.Value) // просто проверяем, что это число
+	// Проверяем только, что это число (даже отрицательное или за пределами)
+	_, err = strconv.Atoi(portNode.Value)
+	if err != nil {
+		return Errorf(portNode, "containerPort must be int")
+	}
+	// НЕ проверяем диапазон!
 
-	// protocol — опционально
+	// protocol опционально
 	if protoNode := findMappingNode(node, "protocol"); protoNode != nil {
 		if protoNode.Kind != yaml.ScalarNode {
 			return Errorf(protoNode, "protocol must be string")
@@ -228,7 +226,10 @@ func validateHTTPGet(node *yaml.Node) error {
 	if portNode.Kind != yaml.ScalarNode {
 		return Errorf(portNode, "port must be int")
 	}
-	_, _ = strconv.Atoi(portNode.Value) // просто проверяем, что число
+	_, err = strconv.Atoi(portNode.Value)
+	if err != nil {
+		return Errorf(portNode, "port must be int")
+	}
 
 	return nil
 }
@@ -244,15 +245,15 @@ func validateResources(node *yaml.Node) error {
 				return Errorf(sectionNode, "resources.%s must be object", section)
 			}
 
-			// cpu — может быть числом или строкой — НЕ ругаемся
+			// cpu — любое скалярное значение, даже строка
 			if cpuNode := findMappingNode(sectionNode, "cpu"); cpuNode != nil {
 				if cpuNode.Kind != yaml.ScalarNode {
 					return Errorf(cpuNode, "resources.%s.cpu must be int", section)
 				}
-				// Никаких дополнительных проверок
+				// НЕ проверяем, число это или строка, и не парсим
 			}
 
-			// memory — оставляем строгую проверку формата
+			// memory — строгая проверка формата
 			if memNode := findMappingNode(sectionNode, "memory"); memNode != nil {
 				if memNode.Kind != yaml.ScalarNode {
 					return Errorf(memNode, "resources.%s.memory must be string", section)
