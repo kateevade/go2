@@ -49,7 +49,6 @@ func validateMetadata(node *yaml.Node) error {
 		return Errorf(node, "metadata must be object")
 	}
 
-	// name обязателен, но может быть пустым
 	nameNode, err := requireField(node, "name")
 	if err != nil {
 		return err
@@ -57,7 +56,7 @@ func validateMetadata(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "metadata.name must be string")
 	}
-	// НЕ проверяем пустоту
+	// Разрешаем пустое имя
 
 	return nil
 }
@@ -102,6 +101,7 @@ func validatePodOS(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "spec.os.name must be string")
 	}
+	// Любое значение
 
 	return nil
 }
@@ -118,6 +118,7 @@ func validateContainer(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "containers.name must be string")
 	}
+	// Разрешаем пустое имя контейнера
 
 	imageNode, err := requireField(node, "image")
 	if err != nil {
@@ -225,7 +226,7 @@ func validateHTTPGet(node *yaml.Node) error {
 	if err != nil {
 		return Errorf(portNode, "port must be int")
 	}
-	// Полностью убрали проверку диапазона порта в пробе
+	// НЕ проверяем диапазон порта в пробах
 
 	return nil
 }
@@ -245,7 +246,7 @@ func validateResources(node *yaml.Node) error {
 				if cpuNode.Kind != yaml.ScalarNode {
 					return Errorf(cpuNode, "resources.%s.cpu must be int", section)
 				}
-				// Любое скалярное значение принимаем
+				// Разрешаем любые значения (число или строка)
 			}
 
 			if memNode := findMappingNode(sectionNode, "memory"); memNode != nil {
