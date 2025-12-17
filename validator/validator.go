@@ -24,6 +24,5 @@ func ValidatePodYAML(filepath string) error {
 		return Errorf(&root, "empty yaml document")
 	}
 
-	doc := root.Content[0]
-	return validateTopLevel(doc)
+	return validateTopLevel(root.Content[0])
 }

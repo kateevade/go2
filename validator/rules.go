@@ -52,14 +52,15 @@ func validateMetadata(node *yaml.Node) error {
 		return Errorf(node, "metadata must be object")
 	}
 
-	nameNode, err := requireField(node, "name")
-	if err != nil {
-		return err
+	if !hasKey(node, "name") {
+		return Errorf(nil, "metadata.name is required")
 	}
-	if nameNode.Kind != yaml.ScalarNode {
+
+	nameNode := findMappingNode(node, "name")
+	if nameNode != nil && nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "metadata.name must be string")
 	}
-	// Пустое имя разрешено по автотестам
+	// name: или name: "" или name: null — всё валидно
 	return nil
 }
 
@@ -68,7 +69,6 @@ func validateSpec(node *yaml.Node) error {
 		return Errorf(node, "spec must be object")
 	}
 
-	// os — опционально
 	if osNode := findMappingNode(node, "os"); osNode != nil {
 		if err := validatePodOS(osNode); err != nil {
 			return err
@@ -95,6 +95,7 @@ func validatePodOS(node *yaml.Node) error {
 	if node.Kind != yaml.MappingNode {
 		return Errorf(node, "spec.os must be object")
 	}
+
 	nameNode, err := requireField(node, "name")
 	if err != nil {
 		return err
@@ -120,9 +121,8 @@ func validateContainer(node *yaml.Node) error {
 	if nameNode.Kind != yaml.ScalarNode {
 		return Errorf(nameNode, "containers.name must be string")
 	}
-	name := nameNode.Value
-	if !snakeCaseRegex.MatchString(name) {
-		return Errorf(nameNode, "containers.name has invalid format '%s'", name)
+	if !snakeCaseRegex.MatchString(nameNode.Value) {
+		return Errorf(nameNode, "containers.name has invalid format '%s'", nameNode.Value)
 	}
 
 	imageNode, err := requireField(node, "image")
@@ -137,7 +137,6 @@ func validateContainer(node *yaml.Node) error {
 		return Errorf(imageNode, "containers.image has invalid format '%s'", image)
 	}
 
-	// ports — опционально
 	if portsNode := findMappingNode(node, "ports"); portsNode != nil {
 		if portsNode.Kind != yaml.SequenceNode {
 			return Errorf(portsNode, "containers.ports must be array")
@@ -149,7 +148,6 @@ func validateContainer(node *yaml.Node) error {
 		}
 	}
 
-	// probes — опционально
 	for _, probeName := range []string{"readinessProbe", "livenessProbe"} {
 		if probeNode := findMappingNode(node, probeName); probeNode != nil {
 			if err := validateProbe(probeNode); err != nil {
@@ -177,8 +175,8 @@ func validateContainerPort(node *yaml.Node) error {
 	if portNode.Kind != yaml.ScalarNode {
 		return Errorf(portNode, "containerPort must be int")
 	}
-	port, err := strconv.Atoi(portNode.Value)
-	if err != nil || port <= 0 || port >= 65536 {
+	port, atoiErr := strconv.Atoi(portNode.Value)
+	if atoiErr != nil || port <= 0 || port >= 65536 {
 		return Errorf(portNode, "containerPort value out of range")
 	}
 
@@ -197,6 +195,7 @@ func validateProbe(node *yaml.Node) error {
 	if node.Kind != yaml.MappingNode {
 		return Errorf(node, "probe must be object")
 	}
+
 	httpGetNode, err := requireField(node, "httpGet")
 	if err != nil {
 		return err
@@ -227,8 +226,8 @@ func validateHTTPGet(node *yaml.Node) error {
 	if portNode.Kind != yaml.ScalarNode {
 		return Errorf(portNode, "port must be int")
 	}
-	port, err := strconv.Atoi(portNode.Value)
-	if err != nil || port <= 0 || port >= 65536 {
+	port, atoiErr := strconv.Atoi(portNode.Value)
+	if atoiErr != nil || port <= 0 || port >= 65536 {
 		return Errorf(portNode, "port value out of range")
 	}
 	return nil
@@ -266,8 +265,8 @@ func validateResources(node *yaml.Node) error {
 				if suffix != "Ki" && suffix != "Mi" && suffix != "Gi" {
 					return Errorf(memNode, "resources.%s.memory has invalid format '%s'", section, mem)
 				}
-				num := mem[:len(mem)-2]
-				if _, err := strconv.Atoi(num); err != nil {
+				numStr := mem[:len(mem)-2]
+				if _, err := strconv.Atoi(numStr); err != nil {
 					return Errorf(memNode, "resources.%s.memory has invalid format '%s'", section, mem)
 				}
 			}
